@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caja Ica - Banca por Internet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: { colors: { cajaAzul: '#003366', cajaNaranja: '#ff6600' } }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <nav class="bg-cajaAzul text-white p-4 shadow-md flex justify-between items-center">
+        <div class="text-2xl font-bold border-l-4 border-cajaNaranja pl-2">CAJA ICA</div>
+        <button onclick="mostrarPantalla('login')" class="bg-cajaNaranja px-4 py-2 rounded font-bold hover:bg-orange-600 transition">
+            Banca por Internet
+        </button>
+    </nav>
+
+    <div id="pantalla-home" class="max-w-4xl mx-auto mt-10 p-6 text-center">
+        <h1 class="text-4xl font-bold text-cajaAzul mb-4">Ahorra con seguridad y confianza</h1>
+        <p class="text-gray-600 mb-8 text-lg">Impulsamos tu crecimiento. Ingresa a nuestra plataforma digital.</p>
+        <img src="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Banca" class="rounded-lg shadow-lg mx-auto h-64 object-cover">
+    </div>
+
+    <div id="pantalla-login" class="max-w-md mx-auto mt-10 hidden">
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded shadow-sm">
+            <p class="font-bold">🔒 Zona Segura Caja Ica</p>
+            <p class="text-sm">Verifica siempre que la URL sea la oficial antes de ingresar.</p>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg shadow-lg border-t-4 border-cajaNaranja">
+            <h2 class="text-2xl font-bold text-cajaAzul mb-6 text-center">Ingresar a tu Cuenta</h2>
+            
+            <div id="mensaje-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                Usuario o contraseña incorrectos.
+            </div>
+
+            <form id="form-login" onsubmit="ejecutarLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Usuario (Correo):</label>
+                    <input type="text" id="txtUsuario" class="shadow appearance-none border rounded w-full py-2 px-3 focus:outline-none focus:border-cajaAzul" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Contraseña:</label>
+                    <input type="password" id="txtClave" class="shadow appearance-none border rounded w-full py-2 px-3 focus:outline-none focus:border-cajaAzul" required>
+                </div>
+                <button type="submit" class="w-full bg-cajaAzul hover:bg-blue-800 text-white font-bold py-2 px-4 rounded">
+                    Ingresar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="pantalla-dashboard" class="max-w-4xl mx-auto mt-10 hidden">
+        <div class="bg-white p-8 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="txt-saludo" class="text-3xl font-bold text-cajaAzul">¡Hola!</h2>
+                <button onclick="mostrarPantalla('home')" class="text-red-500 hover:text-red-700 font-bold">Cerrar Sesión</button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <div class="bg-gray-50 p-6 rounded border border-gray-200">
+                    <p class="text-gray-500 text-sm font-bold uppercase">DNI del Titular</p>
+                    <p id="txt-dni" class="text-xl font-bold text-gray-800">00000000</p>
+                </div>
+                <div class="bg-orange-50 p-6 rounded border border-orange-200">
+                    <p class="text-orange-600 text-sm font-bold uppercase">Saldo Disponible</p>
+                    <p id="txt-saldo" class="text-3xl font-bold text-cajaNaranja">S/ 0.00</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function mostrarPantalla(pantalla) {
+            document.getElementById('pantalla-home').classList.add('hidden');
+            document.getElementById('pantalla-login').classList.add('hidden');
+            document.getElementById('pantalla-dashboard').classList.add('hidden');
+            document.getElementById('pantalla-' + pantalla).classList.remove('hidden');
+            document.getElementById('mensaje-error').classList.add('hidden');
+        }
+
+        async function ejecutarLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('txtUsuario').value;
+            const password = document.getElementById('txtClave').value;
+            const errorDiv = document.getElementById('mensaje-error');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, password: password })
+                });
+
+                if (!response.ok) throw new Error("Error");
+
+                const data = await response.json();
+                document.getElementById('txt-saludo').innerText = "¡Hola, " + data.nombre + "!";
+                document.getElementById('txt-dni').innerText = data.dni;
+                document.getElementById('txt-saldo').innerText = "S/ " + data.saldo;
+                mostrarPantalla('dashboard'); 
+            } catch (err) {
+                errorDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
