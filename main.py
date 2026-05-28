@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from supabase import create_client, Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
+# Permitir que tu index.html se conecte sin bloqueos
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,10 +15,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# REEMPLAZA ESTO CON TUS DATOS DE SUPABASE
-SUPABASE_URL = "AQUI_VA_TU_URL"
-SUPABASE_KEY = "AQUI_VA_TU_KEY"
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# CONFIGURACIÓN DE TU POSTGRESQL LOCAL
+# (Usa la contraseña que creaste cuando instalaste PostgreSQL)
+DB_PARAMS = {
+    "host": "localhost",
+    "database": "postgres",
+    "user": "postgres",
+    "password": "diegoberrocalqj821",  # <--- CAMBIA ESTO por tu clave de Postgres
+    "port": "5432"
+}
 
 class LoginRequest(BaseModel):
     username: str
@@ -24,15 +31,30 @@ class LoginRequest(BaseModel):
 
 @app.post("/api/login")
 def login(data: LoginRequest):
-    response = supabase.table("usuarios").select("*").eq("username", data.username).execute()
-    
-    if not response.data or response.data[0]["password"] != data.password:
-        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
-    
-    usuario = response.data[0]
-    return {
-        "success": True,
-        "nombre": usuario["nombre"],
-        "dni": usuario["dni"],
-        "saldo": usuario["saldo"]
-    }
+    try:
+        # Nos conectamos a tu base de datos local
+        conn = psycopg2.connect(**DB_PARAMS)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Buscamos al usuario por su correo
+        query = "SELECT * FROM usuarios WHERE username = %s"
+        cursor.execute(query, (data.username,))
+        usuario = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        # Verificamos si existe y si la contraseña coincide
+        if not usuario or usuario["password"] != data.password:
+            raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+        
+        # Si todo está bien, enviamos los datos de vuelta a la página web
+        return {
+            "success": True,
+            "nombre": usuario["nombre"],
+            "dni": usuario["dni"],
+            "saldo": float(usuario["saldo"])
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error de base de datos: {str(e)}")
