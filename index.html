@@ -3,113 +3,273 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja Ica - Banca por Internet</title>
+    <title>Caja Ica - Crédito a tu esfuerzo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
-                extend: { colors: { cajaAzul: '#003366', cajaNaranja: '#ff6600' } }
+                extend: {
+                    colors: {
+                        cajaRojo: '#E31D2B', // El rojo principal de la Caja Ica
+                        cajaOro: '#BF9B30',  // El amarillo/oro para acentos
+                        cajaOroClaro: '#C7A252', // Un amarillo más claro para el menú
+                        cajaGris: '#F4F4F4', // Gris claro para fondo
+                    }
+                }
             }
         }
     </script>
+    <style>
+        /* Estilos adicionales para que las pantallas de dashboard y login ocupen buen espacio */
+        .pantalla-completa {
+            min-height: calc(100vh - 350px); /* Ajuste para cabecera y footer */
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="bg-white font-sans text-gray-800">
 
-    <nav class="bg-cajaAzul text-white p-4 shadow-md flex justify-between items-center">
-        <div class="text-2xl font-bold border-l-4 border-cajaNaranja pl-2">CAJA ICA</div>
-        <button onclick="mostrarPantalla('login')" class="bg-cajaNaranja px-4 py-2 rounded font-bold hover:bg-orange-600 transition">
-            Banca por Internet
-        </button>
-    </nav>
-
-    <div id="pantalla-home" class="max-w-4xl mx-auto mt-10 p-6 text-center">
-        <h1 class="text-4xl font-bold text-cajaAzul mb-4">Ahorra con seguridad y confianza</h1>
-        <p class="text-gray-600 mb-8 text-lg">Impulsamos tu crecimiento. Ingresa a nuestra plataforma digital.</p>
-        <img src="https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Banca" class="rounded-lg shadow-lg mx-auto h-64 object-cover">
-    </div>
-
-    <div id="pantalla-login" class="max-w-md mx-auto mt-10 hidden">
-        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded shadow-sm">
-            <p class="font-bold">🔒 Zona Segura Caja Ica</p>
-            <p class="text-sm">Verifica siempre que la URL sea la oficial antes de ingresar.</p>
+    <header class="shadow-md">
+        <div class="bg-cajaRojo text-white py-3 px-6 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <svg class="w-8 h-8" fill="white" viewBox="0 0 24 24"><path d="M12 2.1L1 12h3v9h6v-6h4v6h6v-9h3L12 2.1z"/></svg>
+                <span class="text-3xl font-bold tracking-tight">CAJA ICA</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm">
+                <span>Blog</span> | <span>Agencias</span> | <span>Canales de Atención</span>
+            </div>
         </div>
 
-        <div class="bg-white p-8 rounded-lg shadow-lg border-t-4 border-cajaNaranja">
-            <h2 class="text-2xl font-bold text-cajaAzul mb-6 text-center">Ingresar a tu Cuenta</h2>
-            
-            <div id="mensaje-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-                Usuario o contraseña incorrectos.
-            </div>
-
-            <form id="form-login" onsubmit="ejecutarLogin(event)">
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Usuario (Correo):</label>
-                    <input type="text" id="txtUsuario" class="shadow appearance-none border rounded w-full py-2 px-3 focus:outline-none focus:border-cajaAzul" required>
-                </div>
-                <div class="mb-6">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Contraseña:</label>
-                    <input type="password" id="txtClave" class="shadow appearance-none border rounded w-full py-2 px-3 focus:outline-none focus:border-cajaAzul" required>
-                </div>
-                <button type="submit" class="w-full bg-cajaAzul hover:bg-blue-800 text-white font-bold py-2 px-4 rounded">
-                    Ingresar
+        <div class="bg-cajaOroClaro text-white py-2 px-6 flex justify-between items-center text-sm font-semibold">
+            <nav class="flex gap-6">
+                <span class="hover:text-cajaRojo cursor-pointer">Ahorros</span>
+                <span class="hover:text-cajaRojo cursor-pointer">Créditos</span>
+                <span class="hover:text-cajaRojo cursor-pointer">Seguros</span>
+                <span class="hover:text-cajaRojo cursor-pointer">Servicios</span>
+                <span class="hover:text-cajaRojo cursor-pointer">Atención al Usuario</span>
+            </nav>
+            <div class="flex gap-2">
+                <button onclick="mostrarPantalla('login')" class="bg-cajaRojo text-white px-4 py-1 rounded font-bold hover:bg-red-800 transition text-xs">
+                    PERSONAS
                 </button>
-            </form>
+                <button class="bg-cajaRojo text-white px-4 py-1 rounded font-bold hover:bg-red-800 transition text-xs">
+                    EMPRESAS
+                </button>
+                <button class="bg-cajaOro text-white px-4 py-1 rounded font-bold hover:bg-orange-600 transition text-xs">
+                    PAGO DE SERVICIOS
+                </button>
+            </div>
         </div>
-    </div>
+    </header>
 
-    <div id="pantalla-dashboard" class="max-w-4xl mx-auto mt-10 hidden">
-        <div class="bg-white p-8 rounded-lg shadow-lg">
-            <div class="flex justify-between items-center mb-6">
-                <h2 id="txt-saludo" class="text-3xl font-bold text-cajaAzul">¡Hola!</h2>
-                <button onclick="mostrarPantalla('home')" class="text-red-500 hover:text-red-700 font-bold">Cerrar Sesión</button>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-6">
-                <div class="bg-gray-50 p-6 rounded border border-gray-200">
-                    <p class="text-gray-500 text-sm font-bold uppercase">DNI del Titular</p>
-                    <p id="txt-dni" class="text-xl font-bold text-gray-800">00000000</p>
+    <main>
+
+        <div id="pantalla-home" class="transition-opacity duration-300">
+            <div class="bg-cajaRojo text-white flex items-stretch">
+                <div class="w-1/2 p-16 flex flex-col justify-center items-start gap-4">
+                    <span class="text-sm border border-white px-2 py-1 rounded">Actualiza tus datos y participa</span>
+                    <h1 class="text-6xl font-extrabold leading-tight">¡Son S/5,000 en premios!</h1>
+                    <p class="text-xl">Serán 10 ganadores.</p>
+                    <p class="text-xs mt-10">Vigencia del 01 de abril al 30 de junio del 2026</p>
                 </div>
-                <div class="bg-orange-50 p-6 rounded border border-orange-200">
-                    <p class="text-orange-600 text-sm font-bold uppercase">Saldo Disponible</p>
-                    <p id="txt-saldo" class="text-3xl font-bold text-cajaNaranja">S/ 0.00</p>
+                <div class="w-1/2 bg-gray-300 flex items-center justify-center p-12">
+                    <div class="border-2 border-white/50 w-full h-80 flex flex-col items-center justify-center rounded-lg text-white/70">
+                        <svg class="w-20 h-20 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        [Imagen del estadio de fútbol]
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto py-12 px-6 grid grid-cols-4 gap-8 text-center">
+                <div class="p-6 bg-white rounded-lg shadow flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-cajaGris border border-gray-200"></div>
+                    <p class="font-bold text-cajaRojo">Créditos rápidos</p>
+                </div>
+                <div class="p-6 bg-white rounded-lg shadow flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-cajaGris border border-gray-200"></div>
+                    <p class="font-bold text-cajaRojo">Ahorros rentables</p>
+                </div>
+                <div class="p-6 bg-white rounded-lg shadow flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-cajaGris border border-gray-200"></div>
+                    <p class="font-bold text-cajaRojo">Canales efectivos</p>
+                </div>
+                <div class="p-6 bg-white rounded-lg shadow flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-cajaGris border border-gray-200"></div>
+                    <p class="font-bold text-cajaRojo">Mejores servicios</p>
                 </div>
             </div>
         </div>
-    </div>
+
+
+        <div id="pantalla-login" class="hidden pantalla-completa bg-cajaGris transition-opacity duration-300">
+            <div class="max-w-md mx-auto py-20 px-6">
+                <div class="bg-white p-8 rounded-lg shadow-xl border-t-8 border-cajaRojo">
+                    <div class="flex flex-col items-center gap-2 mb-8">
+                        <div class="flex items-center gap-1 text-cajaRojo font-bold text-lg">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a5 5 0 105 5 5 5 0 00-5-5zm0 8a3 3 0 113-3 3 3 0 01-3 3zm9 11v-1a7 7 0 00-7-7h-4a7 7 0 00-7 7v1h2v-1a5 5 0 015-5h4a5 5 0 015 5v1z"/></svg>
+                            BANCA POR INTERNET
+                        </div>
+                        <h2 class="text-2xl font-extrabold text-gray-900">Ingresar a tu cuenta</h2>
+                        <p class="text-sm text-gray-600">Área segura para personas</p>
+                    </div>
+                    
+                    <div id="mensaje-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 text-sm flex items-start gap-2">
+                        <svg class="w-5 h-5 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <span>El usuario o la contraseña son incorrectos. Por favor, intente nuevamente.</span>
+                    </div>
+
+                    <form id="form-login" onsubmit="ejecutarLogin(event)" class="space-y-5">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Usuario (Correo electrónico):</label>
+                            <input type="email" id="txtUsuario" class="shadow-sm appearance-none border border-gray-300 rounded w-full py-2.5 px-3.5 focus:outline-none focus:border-cajaOro focus:ring-1 focus:ring-cajaOro" required placeholder="ejemplo@correo.com">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Contraseña:</label>
+                            <input type="password" id="txtClave" class="shadow-sm appearance-none border border-gray-300 rounded w-full py-2.5 px-3.5 focus:outline-none focus:border-cajaOro focus:ring-1 focus:ring-cajaOro" required placeholder="••••••••">
+                        </div>
+                        <div class="text-right text-xs text-cajaRojo hover:underline cursor-pointer">¿Olvidó su contraseña?</div>
+                        
+                        <div class="flex gap-3 pt-3">
+                            <button type="submit" class="flex-1 bg-cajaRojo hover:bg-red-800 text-white font-bold py-2.5 px-4 rounded transition">
+                                INGRESAR
+                            </button>
+                            <button type="button" onclick="mostrarPantalla('home')" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-4 rounded transition">
+                                CANCELAR
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="pantalla-dashboard" class="hidden pantalla-completa bg-cajaGris transition-opacity duration-300">
+            <div class="max-w-6xl mx-auto py-16 px-6">
+                <div class="bg-white p-10 rounded-xl shadow-lg border-l-8 border-cajaOro">
+                    <div class="flex justify-between items-center mb-10 border-b border-gray-100 pb-6">
+                        <h2 id="txt-saludo" class="text-4xl font-extrabold text-gray-900">¡Bienvenido, Usuario!</h2>
+                        <button onclick="mostrarPantalla('home')" class="text-cajaRojo hover:text-red-800 font-bold flex items-center gap-1.5 text-sm">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 13v-2H7V8l-5 4 5 4v-3h9z"/><path d="M20 3H9c-1.1 0-2 .9-2 2v3h2V5h11v14H9v-3H7v3c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                            Cerrar sesión
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-8">
+                        <div class="col-span-1 bg-cajaGris p-8 rounded-lg border border-gray-200">
+                            <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider mb-2">DNI del Titular</p>
+                            <p id="txt-dni" class="text-2xl font-mono font-bold text-gray-800 tracking-wider">00000000</p>
+                        </div>
+                        <div class="col-span-2 bg-red-50 p-8 rounded-lg border border-cajaRojo">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-cajaRojo text-sm font-semibold uppercase tracking-wider">Saldo Disponible</p>
+                                <span class="text-xs text-cajaOro font-bold border border-cajaOro px-2 py-0.5 rounded">Cuenta Ahorro Esfuerzo</span>
+                            </div>
+                            <p id="txt-saldo" class="text-6xl font-extrabold text-gray-900 tracking-tight">S/ 0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-cajaRojo text-white py-16 px-10 text-sm mt-auto">
+        <div class="max-w-7xl mx-auto grid grid-cols-5 gap-10">
+            <div>
+                <h4 class="font-bold mb-4">Simuladores</h4>
+                <ul class="space-y-2 text-gray-200">
+                    <li>Simulador de Créditos</li>
+                    <li>Simulador de Ahorros</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold mb-4">Información de la Caja</h4>
+                <ul class="space-y-2 text-gray-200">
+                    <li>Trabaja con nosotros</li>
+                    <li>Estados Financieros</li>
+                    <li>Sostenibilidad</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold mb-4">Atención</h4>
+                <ul class="space-y-2 text-gray-200">
+                    <li>Canales de Atención</li>
+                    <li>Libro de Reclamaciones</li>
+                    <li>Servicio al Cliente</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold mb-4">Contáctanos</h4>
+                <ul class="space-y-2 text-gray-200">
+                    <li>Central Telefónica: <br/> (056) 581 430</li>
+                    <li>Oficina Principal: <br/> Av. Conde de Nieva 450 - Ica</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold mb-4">Síguenos</h4>
+                <div class="flex gap-4 text-2xl">
+                    <span>f</span> <span>y</span> <span>i</span> <span>L</span>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-12 text-xs text-gray-300">
+            © 2024 Caja Municipal de Ahorro y Crédito Ica S.A. Todos los derechos reservados.
+        </div>
+    </footer>
+
 
     <script>
+        // Función para cambiar de pantalla (Home, Login, Dashboard)
         function mostrarPantalla(pantalla) {
+            // Ocultamos todas las pantallas
             document.getElementById('pantalla-home').classList.add('hidden');
             document.getElementById('pantalla-login').classList.add('hidden');
             document.getElementById('pantalla-dashboard').classList.add('hidden');
+            
+            // Mostramos la pantalla solicitada
             document.getElementById('pantalla-' + pantalla).classList.remove('hidden');
+            
+            // Ocultamos mensajes de error si los hubiera
             document.getElementById('mensaje-error').classList.add('hidden');
         }
 
+        // Función para manejar el envío del formulario de login (conecta con tu backend)
         async function ejecutarLogin(event) {
-            event.preventDefault();
+            event.preventDefault(); // Evitamos que la página se recargue
+            
             const username = document.getElementById('txtUsuario').value;
             const password = document.getElementById('txtClave').value;
             const errorDiv = document.getElementById('mensaje-error');
 
             try {
+                // Llamada a tu API backend (asegúrate de que main.py esté corriendo)
                 const response = await fetch('http://127.0.0.1:8000/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: username, password: password })
                 });
 
-                if (!response.ok) throw new Error("Error");
+                if (!response.ok) {
+                    throw new Error("Credenciales incorrectas"); // Esto saltará al catch
+                }
 
+                // Si la respuesta es exitosa (ok), obtenemos los datos
                 const data = await response.json();
-                document.getElementById('txt-saludo').innerText = "¡Hola, " + data.nombre + "!";
+                
+                // Actualizamos la pantalla del Dashboard con los datos del usuario
+                document.getElementById('txt-saludo').innerText = "¡Bienvenido, " + data.nombre + "!";
                 document.getElementById('txt-dni').innerText = data.dni;
                 document.getElementById('txt-saldo').innerText = "S/ " + data.saldo;
+                
+                // Mostramos el Dashboard
                 mostrarPantalla('dashboard'); 
+
             } catch (err) {
+                // Si hay un error (credenciales incorrectas o servidor caído), mostramos el mensaje rojo
                 errorDiv.classList.remove('hidden');
+                console.error("Error al iniciar sesión:", err.message);
             }
         }
     </script>
+
 </body>
 </html>
