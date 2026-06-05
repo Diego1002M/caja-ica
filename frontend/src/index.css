@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cajaRojo: #B91C1C;
+  --color-cajaRojoSuave: #DC2626;
+  --color-cajaOro: #B8860B;
+  --color-cajaGris: #F4F4F4;
+}
