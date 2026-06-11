@@ -1,11 +1,63 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-function Dashboard({ usuario, irAHome }) {
-  // Tomamos los datos dinámicos que vienen desde el Login, o por defecto los de Juan
+function Dashboard({ usuario, irAHome, prestamosGlobales, setPrestamosGlobales }) {
   const nombreCliente = usuario?.nombre || 'Juan Perez';
   const dniCliente = usuario?.dni || '74859612';
-  const saldoCliente = usuario?.saldo || '2550.8';
+  
+  // El saldo inicial se calcula sumando los préstamos aprobados que tenga este cliente
+  const prestamosAprobadosMonto = prestamosGlobales
+    .filter(p => p.dni === dniCliente && p.estado === 'Aprobado')
+    .reduce((total, p) => total + p.monto, 0);
+
+  const saldoInicialBase = usuario?.saldo || 2550.80;
+  const saldoTotal = saldoInicialBase + prestamosAprobadosMonto;
   const interesesCliente = usuario?.intereses || '145.20';
+
+  const [mostrarSimulador, setMostrarSimulador] = useState(false);
+  const [montoPrestamo, setMontoPrestamo] = useState('');
+  const [cuotas, setCuotas] = useState('12');
+
+  const enviarSolicitudPrestamo = (e) => {
+    e.preventDefault();
+    if (!montoPrestamo || montoPrestamo <= 0) return;
+
+    const montoTotalConInteres = parseFloat(montoPrestamo) * 1.15;
+    const pagoMensual = montoTotalConInteres / parseInt(cuotas);
+
+    // Creamos la nueva solicitud y la inyectamos a la lista compartida que verá el asesor
+    const nuevaSolicitud = {
+      id: Date.now(),
+      cliente: nombreCliente,
+      dni: dniCliente,
+      monto: parseFloat(montoPrestamo),
+      cuotas: cuotas,
+      pagoMensual: pagoMensual.toFixed(2),
+      estado: 'Pendiente' // Empieza en evaluación
+    };
+
+    setPrestamosGlobales([...prestamosGlobales, nuevaSolicitud]);
+    setMostrarSimulador(false);
+    setMontoPrestamo('');
+    alert('¡Solicitud enviada con éxito! Queda en espera de la aprobación del asesor.');
+  };
+
+  // Construimos la lista de movimientos uniendo los base más los créditos aprobados
+  const movimientosBase = [
+    { id: 1, tipo: 'deposito', titulo: 'Depósito en Efectivo', detalle: 'Agencia Ica Principal - 10 May 2024', monto: 500.00 },
+    { id: 2, tipo: 'pago', titulo: 'Pago de Servicios (Luz del Sur)', detalle: 'Banca por Internet - 08 May 2024', monto: -120.50 }
+  ];
+
+  const misCreditosAprobados = prestamosGlobales
+    .filter(p => p.dni === dniCliente && p.estado === 'Aprobado')
+    .map(p => ({
+      id: p.id,
+      tipo: 'deposito',
+      titulo: 'Crédito Aprobado por Asesor',
+      detalle: `Desembolso online - ${p.cuotas} meses`,
+      monto: p.monto
+    }));
+
+  const todosLosMovimientos = [...misCreditosAprobados, ...movimientosBase];
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] py-10 px-6 font-sans">
@@ -15,125 +67,92 @@ function Dashboard({ usuario, irAHome }) {
         <div className="flex justify-between items-start mb-8">
           <div>
             <h2 className="text-3xl font-extrabold text-[#1F2937]">Hola, {nombreCliente}</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Última conexión: Hoy 10:45 AM</p>
+            <p className="text-gray-500 text-sm mt-0.5">Módulo de Cliente</p>
           </div>
-          <button 
-            onClick={irAHome} 
-            className="bg-[#E5E7EB] hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-bold text-xs shadow-sm transition cursor-pointer"
-          >
+          <button onClick={irAHome} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-bold text-xs shadow-sm cursor-pointer">
             Cerrar sesión
           </button>
         </div>
 
-        {/* CONTENEDOR PRINCIPAL: TARJETAS DE SALDO */}
+        {/* TARJETAS DE SALDO */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          
-          {/* TARJETA ROJA (CUENTA DE AHORROS) */}
-          <div className="md:col-span-2 bg-gradient-to-br from-[#B91C1C] to-[#991B1B] rounded-2xl shadow-md p-6 text-white relative overflow-hidden flex flex-col justify-between min-h-[200px]">
+          <div className="md:col-span-2 bg-gradient-to-br from-[#B91C1C] to-[#991B1B] rounded-2xl shadow-md p-6 text-white flex flex-col justify-between min-h-[170px]">
             <div>
-              <p className="text-red-200 text-xs font-bold uppercase tracking-wider mb-0.5">Cuenta Ahorro FlexiTotal</p>
-              <p className="text-sm font-medium text-red-100">DNI Vinculado: {dniCliente}</p>
+              <p className="text-red-200 text-xs font-bold uppercase mb-0.5">Cuenta Ahorro FlexiTotal</p>
+              <p className="text-sm">DNI Vinculado: {dniCliente}</p>
             </div>
-            
-            <div className="mt-6">
-              <p className="text-red-200 text-xs font-medium mb-0.5">Saldo Disponible</p>
-              <h3 className="text-5xl font-black tracking-tight">S/ {saldoCliente}</h3>
-            </div>
-
-            {/* Icono de información decorativo gigante al fondo de la tarjeta */}
-            <div className="absolute right-4 bottom-1/2 translate-y-1/2 opacity-10 pointer-events-none">
-              <svg className="w-36 h-36" fill="white" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-              </svg>
+            <div>
+              <p className="text-red-200 text-xs mb-0.5">Saldo Disponible</p>
+              <h3 className="text-4xl font-black">S/ {saldoTotal.toFixed(2)}</h3>
             </div>
           </div>
 
-          {/* TARJETA BLANCA (INTERESES GANADOS) */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">Intereses Ganados</span>
-                <span className="bg-[#FEF3C7] text-[#B45309] text-[10px] font-extrabold px-2 py-0.5 rounded-full">+ 7.00% TREA</span>
-              </div>
-              <h4 className="text-3xl font-black text-gray-800">S/ {interesesCliente}</h4>
-              <p className="text-gray-400 text-xs mt-1">Acumulado este mes</p>
+              <p className="text-gray-500 text-xs font-bold uppercase mb-2">Intereses Ganados</p>
+              <h4 className="text-2xl font-black text-gray-800">S/ {interesesCliente}</h4>
             </div>
-
-            <button className="w-full text-center text-[#B8860B] font-bold text-xs py-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl transition border border-gray-100 cursor-pointer">
-              Ver detalle de intereses
-            </button>
+            <span className="text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded-lg text-center">+ 7.00% TREA</span>
           </div>
-
         </div>
 
-        {/* ACCIONES RÁPIDAS (LOS 4 BOTONES REDONDEADOS) */}
+        {/* ACCIONES RÁPIDAS */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <button className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-700 hover:shadow-md transition cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-cajaRojo group-hover:bg-cajaRojo group-hover:text-white transition">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-            </div>
+          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-400">
             Transferir
-          </button>
-
-          <button className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-700 hover:shadow-md transition cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-cajaRojo group-hover:bg-cajaRojo group-hover:text-white transition">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            Préstamos
-          </button>
-
-          <button className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-700 hover:shadow-md transition cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-cajaRojo group-hover:bg-cajaRojo group-hover:text-white transition">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            </div>
-            Abrir Ahorro
-          </button>
-
-          <button className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-700 hover:shadow-md transition cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-cajaRojo group-hover:bg-cajaRojo group-hover:text-white transition">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </div>
-            Pagar Servicios
-          </button>
-        </div>
-
-        {/* SECCIÓN DE ÚLTIMOS MOVIMIENTOS */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-extrabold text-gray-800 text-sm uppercase tracking-wider">Últimos Movimientos</h3>
-            <button className="text-cajaRojo hover:underline text-xs font-bold cursor-pointer">Ver todos</button>
           </div>
 
+          <button 
+            onClick={() => setMostrarSimulador(!mostrarSimulador)} 
+            className="bg-white p-4 rounded-xl shadow border-2 border-amber-500 flex flex-col items-center justify-center gap-2 font-bold text-xs text-amber-700 hover:bg-amber-50 transition cursor-pointer"
+          >
+            💰 Simular Préstamo
+          </button>
+
+          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-400">
+            Abrir Ahorro
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center gap-2 font-bold text-xs text-gray-400">
+            Pagar Servicios
+          </div>
+        </div>
+
+        {/* FORMULARIO SIMULADOR */}
+        {mostrarSimulador && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
+            <h3 className="font-extrabold text-amber-900 mb-3">💰 Simulador de Crédito Personal</h3>
+            <form onSubmit={enviarSolicitudPrestamo} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-xs font-bold text-amber-800 mb-1">Monto (S/)</label>
+                <input type="number" value={montoPrestamo} onChange={(e) => setMontoPrestamo(e.target.value)} className="w-full bg-white border p-2 rounded text-sm outline-none" placeholder="Monto" required />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 mb-1">Plazo</label>
+                <select value={cuotas} onChange={(e) => setCuotas(e.target.value)} className="w-full bg-white border p-2 rounded text-sm outline-none">
+                  <option value="6">6 Meses</option>
+                  <option value="12">12 Meses</option>
+                </select>
+              </div>
+              <button type="submit" className="bg-amber-600 text-white font-bold py-2 px-4 rounded text-sm cursor-pointer">Solicitar</button>
+            </form>
+          </div>
+        )}
+
+        {/* HISTORIAL */}
+        <div className="bg-white rounded-2xl shadow-sm border p-6">
+          <h3 className="font-extrabold text-gray-800 text-sm uppercase tracking-wider mb-4">Últimos Movimientos</h3>
           <div className="space-y-4">
-            
-            {/* MOVIMIENTO 1: DEPÓSITO */}
-            <div className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                </div>
+            {todosLosMovimientos.map((mov) => (
+              <div key={mov.id} className="flex justify-between items-center py-2 border-b last:border-0">
                 <div>
-                  <p className="font-bold text-sm text-gray-800">Depósito en Efectivo</p>
-                  <p className="text-gray-400 text-xs">Agencia Ica Principal - 10 May 2024</p>
+                  <p className="font-bold text-sm text-gray-800">{mov.titulo}</p>
+                  <p className="text-gray-400 text-xs">{mov.detalle}</p>
                 </div>
+                <span className={`font-bold text-sm ${mov.monto > 0 ? 'text-green-600' : 'text-gray-800'}`}>
+                  {mov.monto > 0 ? `+ S/ ${mov.monto.toFixed(2)}` : `- S/ ${Math.abs(mov.monto).toFixed(2)}`}
+                </span>
               </div>
-              <span className="font-bold text-green-600 text-sm">+ S/ 500.00</span>
-            </div>
-
-            {/* MOVIMIENTO 2: PAGO SERVICIOS */}
-            <div className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
-                </div>
-                <div>
-                  <p className="font-bold text-sm text-gray-800">Pago de Servicios (Luz del Sur)</p>
-                  <p className="text-gray-400 text-xs">Banca por Internet - 08 May 2024</p>
-                </div>
-              </div>
-              <span className="font-bold text-gray-800 text-sm">- S/ 120.50</span>
-            </div>
-
+            ))}
           </div>
         </div>
 
