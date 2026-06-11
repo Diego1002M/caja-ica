@@ -1,57 +1,114 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import psycopg2
-from psycopg2.extras import RealDictCursor
 
-app = FastAPI()
+app = Flask(__name__)
+# IMPORTANTÍSIMO: Permite que tu app de React se conecte a Python sin bloqueos de seguridad
+CORS(app)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ========================================================
+# FUNCIÓN AUXILIAR PARA CONECTAR A POSTGRESQL
+# ========================================================
+def obtener_conexion_db():
+    return psycopg2.connect(
+        host="localhost",
+        user="postgres",         # Tu usuario por defecto de Postgres
+        password="diegoberrocalqj821", # !!! CAMBIA ESTO POR TU CONTRASEÑA REAL DE PGADMIN !!!
+        database="caja-ica",     # El nombre exacto de tu BD en pgAdmin
+        port="5432"              # Puerto estándar de Postgres
+    )
 
-# CONFIGURACIÓN DE TU POSTGRESQL LOCAL
-DB_PARAMS = {
-    "host": "localhost",
-    "database": "postgres",
-    "user": "postgres",
-    "password": "diegoberrocalqj821",  
-    "port": "5432"
-}
+# ========================================================
+# 1. RUTA PARA INICIAR SESIÓN (LOGIN)
+# ========================================================
+@app.route('/api/login', methods=['POST'])
+def login():
+    datos = request.json
+    dni = datos.get('dni')
+    password = datos.get('password')
 
-# Aquí le decimos que reciba el DNI en lugar del correo
-class LoginRequest(BaseModel):
-    dni: str
-    password: str
+    if not dni or not password:
+        return jsonify({"mensaje": "DNI y contraseña son obligatorios"}), 400
 
-@app.post("/api/login")
-def login(data: LoginRequest):
     try:
-        conn = psycopg2.connect(**DB_PARAMS)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Buscamos en la base de datos por la columna DNI
-        query = "SELECT * FROM usuarios WHERE dni = %s"
-        cursor.execute(query, (data.dni,))
+        conexion = obtener_conexion_db()
+        cursor = conexion.cursor()
+
+        # Buscamos al usuario por su DNI y Contraseña
+        cursor.execute("SELECT nombre, dni, saldo, intereses FROM usuarios WHERE dni = %s AND password = %s;", (dni, password))
         usuario = cursor.fetchone()
-        
+
         cursor.close()
-        conn.close()
+        conexion.close()
+
+        if usuario:
+            # Si se encuentra el usuario, devolvemos sus datos reales de la BD
+            return jsonify({
+                "nombre": usuario[0],
+                "dni": usuario[1],
+                "saldo": float(usuario[2]), # Convertimos el tipo NUMERIC de Postgres a float para React
+                "intereses": float(usuario[3])
+            }), 200
+        else:
+            # Si los datos no coinciden
+            return jsonify({"mensaje": "El DNI o la contraseña son incorrectos."}), 401
+
+    except Exception as error:
+        print("Error en el Login:", error)
+        return jsonify({"mensaje": "Error interno del servidor al conectar con la base de datos."}), 500
+
+
+# ========================================================
+# 2. RUTA PARA CREAR CUENTAS PERSONALES (REGISTRO)
+# ========================================================
+@app.route('/api/registro', methods=['POST'])
+def registrar_usuario():
+    datos = request.json
+    dni = datos.get('dni')
+    nombre = datos.get('nombre')
+    password = datos.get('password')
+
+    # Validamos que no envíen campos vacíos
+    if not dni or not nombre or not password:
+        return jsonify({"mensaje": "Todos los campos son obligatorios."}), 400
+
+    if len(dni) != 8:
+        return jsonify({"mensaje": "El DNI debe tener exactamente 8 dígitos."}), 400
+
+    try:
+        conexion = obtener_conexion_db()
+        cursor = conexion.cursor()
+
+        # Verificamos primero si el DNI ya está registrado para no romper la llave primaria
+        cursor.execute("SELECT dni FROM usuarios WHERE dni = %s;", (dni,))
+        if cursor.fetchone():
+            cursor.close()
+            conexion.close()
+            return jsonify({"mensaje": "Este número de DNI ya está registrado en el banco."}), 400
+
+        # Insertamos el nuevo cliente. Le regalamos un saldo inicial de S/ 100.00 y 0.00 de intereses
+        consulta_insertar = """
+            INSERT INTO usuarios (dni, nombre, password, saldo, intereses) 
+            VALUES (%s, %s, %s, %s, %s);
+        """
+        valores = (dni, nombre, password, 100.00, 0.00)
         
-        # Verificamos que el usuario exista y la clave sea correcta
-        if not usuario or usuario["password"] != data.password:
-            raise HTTPException(status_code=401, detail="Credenciales incorrectas")
-        
-        return {
-            "success": True,
-            "nombre": usuario["nombre"],
-            "dni": usuario["dni"],
-            "saldo": float(usuario["saldo"])
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error de base de datos: {str(e)}")
+        cursor.execute(consulta_insertar, valores)
+        conexion.commit() # Guarda físicamente el nuevo registro en tu pgAdmin
+
+        cursor.close()
+        conexion.close()
+
+        return jsonify({"mensaje": "Cuenta creada exitosamente en PostgreSQL."}), 201
+
+    except Exception as error:
+        print("Error en el Registro:", error)
+        return jsonify({"mensaje": "Error interno del servidor al procesar el registro."}), 500
+
+
+# ========================================================
+# ARRANQUE DEL SERVIDOR EN EL PUERTO 5000
+# ========================================================
+if __name__ == '__main__':
+    # Corre en el puerto 5000 que es el que configuramos en los fetch de React
+    app.run(debug=True, port=5000)
