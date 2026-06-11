@@ -4,58 +4,72 @@ function Dashboard({ usuario, irAHome, prestamosGlobales, setPrestamosGlobales }
   const nombreCliente = usuario?.nombre || 'Juan Perez';
   const dniCliente = usuario?.dni || '74859612';
   
-  // 1. Filtrar los préstamos de este cliente que ya fueron APROBADOS por el asesor
+  // 1. Filtrar las solicitudes usando el estado del Core del profesor (Ej: Estado 2 = Aprobado)
   const misPrestamosAprobados = prestamosGlobales ? prestamosGlobales.filter(
-    (p) => p.dni === dniCliente && p.estado === 'Aprobado'
-  ) : [];
-
-  // Calcular el saldo dinámico restando los pagos que haga el cliente
+  (p) => (p.dni === dniCliente || p.pkcliente === usuario?.pkcliente) && p.pksolicitudestado === 2
+) : [];
   const [pagosEfectuados, setPagosEfectuados] = useState(0);
-
-  const prestamosAprobadosMonto = misPrestamosAprobados.reduce((total, p) => total + p.monto, 0);
-  const saldoInicialBase = usuario?.saldo || 2550.80;
-  const saldoTotal = saldoInicialBase + prestamosAprobadosMonto - pagosEfectuados;
-  const interesesCliente = usuario?.intereses || '145.20';
-
   const [mostrarSimulador, setMostrarSimulador] = useState(false);
-  const [montoPrestamo, setMontoPrestamo] = useState('');
-  const [cuotas, setCuotas] = useState('12');
+  const [montoSolicitud, setMontoSolicitud] = useState('');
+  const [nroCuotas, setNroCuotas] = useState('12');
 
-  // Función para enviar solicitud al Asesor Interno
+  // Cálculos financieros basados en dsolicitud del Core
+  const totalMontoAprobado = misPrestamosAprobados.reduce((total, p) => total + parseFloat(p.montoaprobadocredito || p.montosolicitudcredito), 0);
+  const saldoInicialBase = usuario?.saldo || 8292.35; 
+  const saldoTotal = saldoInicialBase + totalMontoAprobado - pagosEfectuados;
+  
+  // Deuda total acumulando tasa de interés compensatoria del esquema
+  const deudaTotalCreditos = misPrestamosAprobados.reduce((total, p) => {
+    const tasa = parseFloat(p.tasainterescompensatoria || 15); // 15% por defecto si no viene del backend
+    const montoSolicitado = parseFloat(p.montosolicitudcredito);
+    const totalConInteres = montoSolicitado * (1 + (tasa / 100));
+    const mensualidad = totalConInteres / parseInt(p.nrocuotasolicitud);
+    const pagado = (p.cuotasPagadas || 0) * mensualidad;
+    return total + (totalConInteres - pagado);
+  }, misPrestamosAprobados.length > 0 ? 0 : 3116.36);
+
+  // Función para enviar solicitud mapeada al esquema 'dsolicitud'
   const enviarSolicitudPrestamo = (e) => {
     e.preventDefault();
-    if (!montoPrestamo || montoPrestamo <= 0) return;
+    if (!montoSolicitud || montoSolicitud <= 0) return;
 
-    const montoTotalConInteres = parseFloat(montoPrestamo) * 1.15; // 15% Interés Caja Ica
-    const pagoMensual = montoTotalConInteres / parseInt(cuotas);
+    const tasaCompensatoria = 15.00; // Tasa base Caja Ica
+    const totalConInteres = parseFloat(montoSolicitud) * (1 + (tasaCompensatoria / 100));
+    const pagoMensual = totalConInteres / parseInt(nroCuotas);
 
-    const nuevaSolicitud = {
-      id: Date.now(),
-      cliente: nombreCliente,
-      dni: dniCliente,
-      monto: parseFloat(montoPrestamo),
-      cuotas: parseInt(cuotas),
-      cuotasPagadas: 0, 
+    // OBJETO ESTRUCTURADO CON LAS COLUMNAS EXACTAS DE TU PROFESOR
+    const nuevaSolicitudCore = {
+      pksolicitud: Date.now(), // ID temporal
+      codsolicitud: `SOL-${Date.now().toString().substring(8)}`,
+      dni: dniCliente, // Para amarre de interfaz
+      montosolicitudcredito: parseFloat(montoSolicitud),
+      nrocuotasolicitud: parseInt(nroCuotas),
+      pksolicitudestado: 1, // 1 = Pendiente en dsolicitudestado
+      tasainterescompensatoria: tasaCompensatoria,
+      
+      // Campos calculados para control de la devolución en la tabla
+      montoaprobadocredito: parseFloat(montoSolicitud), 
+      nrocuotaaprobado: parseInt(nroCuotas),
+      cuotasPagadas: 0,
       pagoMensual: pagoMensual.toFixed(2),
-      montoTotalConInteres: montoTotalConInteres.toFixed(2),
-      estado: 'Pendiente'
+      montoTotalConInteres: totalConInteres.toFixed(2)
     };
 
-    setPrestamosGlobales([...prestamosGlobales, nuevaSolicitud]);
+    setPrestamosGlobales([...prestamosGlobales, nuevaSolicitudCore]);
     setMostrarSimulador(false);
-    setMontoPrestamo('');
-    alert('¡Solicitud enviada! El asesor interno debe ingresar y aprobarla para que se desembolse.');
+    setMontoSolicitud('');
+    alert('¡Solicitud registrada en dsolicitud! Enviada al Asesor con pksolicitudestado: 1 (Pendiente).');
   };
 
-  // FUNCIÓN PARA PAGAR UNA CUOTA DEL PRÉSTAMO
-  const pagarCuotaPrestamo = (id, valorCuota) => {
+  // Función de devolución / amortización de cuota
+  const pagarCuotaPrestamo = (pksolicitud, valorCuota) => {
     if (saldoTotal < valorCuota) {
-      alert('⚠️ Saldo insuficiente en tu Cuenta Ahorro para pagar esta cuota.');
+      alert('⚠️ Saldo insuficiente en tu Cuenta Ahorro para realizar la amortización.');
       return;
     }
 
     const actualizados = prestamosGlobales.map((p) => {
-      if (p.id === id) {
+      if (p.pksolicitud === pksolicitud) {
         const nuevasPagadas = (p.cuotasPagadas || 0) + 1;
         return { ...p, cuotasPagadas: nuevasPagadas };
       }
@@ -64,174 +78,184 @@ function Dashboard({ usuario, irAHome, prestamosGlobales, setPrestamosGlobales }
 
     setPrestamosGlobales(actualizados);
     setPagosEfectuados(pagosEfectuados + valorCuota); 
-    alert(`✅ ¡Pago exitoso! Se cargó S/ ${valorCuota.toFixed(2)} a tu cuenta.`);
+    alert(`✅ ¡Abono procesado! Cuota descontada de tu saldo disponible.`);
   };
 
-  // Historial de Movimientos Base
-  const movimientosBase = [
-    { id: 1, tipo: 'deposito', titulo: 'Depósito en Efectivo', detalle: 'Agencia Ica Principal', monto: 500.00 },
-    { id: 2, tipo: 'pago', titulo: 'Pago de Servicios (Luz)', detalle: 'Banca por Internet', monto: -120.50 }
-  ];
-
-  const misDesembolsosMov = misPrestamosAprobados.map(p => ({
-    id: p.id,
-    tipo: 'deposito',
-    titulo: 'Crédito Online Aprobado',
-    detalle: `Desembolso automático - ${p.cuotas} meses`,
-    monto: p.monto
-  }));
-
-  const todosLosMovimientos = [...misDesembolsosMov, ...movimientosBase];
-
   return (
-    <div className="min-h-screen bg-[#F4F6F8] py-10 px-6 font-sans">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-[#F4F6F9] font-sans text-gray-700">
+      
+      {/* BANNER INSTITUTIONAL */}
+      <div className="bg-[#B91C1C] text-white px-8 py-3 flex justify-between items-center shadow-md">
+        <div className="flex items-center gap-2">
+          <span className="font-black text-xl tracking-wider">CAJA ICA</span>
+          <span className="text-xs bg-red-800 px-2 py-0.5 rounded text-red-200">CORE FINANCIERO v2.0</span>
+        </div>
+        <div className="flex items-center gap-4 text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-teal-600 rounded-full flex items-center justify-center font-bold text-white uppercase">
+              {nombreCliente.substring(0,2)}
+            </div>
+            <span>{nombreCliente} (CLI-007)</span>
+          </div>
+          <button onClick={irAHome} className="bg-red-800 hover:bg-red-900 px-3 py-1.5 rounded font-bold transition cursor-pointer">
+            🚪 Salir
+          </button>
+        </div>
+      </div>
+
+      {/* RESTRICCIÓN DE PESTAÑAS */}
+      <div className="bg-[#B91C1C] border-t border-red-800 px-8 flex gap-6 text-white text-xs font-bold shadow-sm">
+        <button className="py-3 px-4 bg-red-700">Inicio</button>
+        <button className="py-3 px-4 hover:bg-red-700 opacity-80">Cuentas</button>
+        <button onClick={() => setMostrarSimulador(!mostrarSimulador)} className="py-3 px-4 hover:bg-red-700 opacity-80 text-amber-300">⭐ Solicitar Préstamo ({nroCuotas} Meses)</button>
+        <button className="py-3 px-4 hover:bg-red-700 opacity-80">Operaciones</button>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        {/* ENCABEZADO */}
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h2 className="text-3xl font-extrabold text-[#1F2937]">Hola, {nombreCliente}</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Módulo Banca Personas</p>
-          </div>
-          <button onClick={irAHome} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-bold text-xs shadow-sm cursor-pointer">
-            Cerrar sesión
-          </button>
-        </div>
-
-        {/* TARJETAS DE SALDO */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="md:col-span-2 bg-gradient-to-br from-[#B91C1C] to-[#991B1B] rounded-2xl shadow-md p-6 text-white flex flex-col justify-between min-h-[170px]">
-            <div>
-              <p className="text-red-200 text-xs font-bold uppercase mb-0.5">Cuenta Ahorro FlexiTotal</p>
-              <p className="text-sm">DNI Vinculado: {dniCliente}</p>
-            </div>
-            <div>
-              <p className="text-red-200 text-xs mb-0.5">Saldo Disponible Actual</p>
-              <h3 className="text-4xl font-black">S/ {saldoTotal.toFixed(2)}</h3>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
-            <div>
-              <p className="text-gray-500 text-xs font-bold uppercase mb-2">Intereses Ganados</p>
-              <h4 className="text-2xl font-black text-gray-800">S/ {interesesCliente}</h4>
-            </div>
-            <span className="text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded-lg text-center">+ 7.00% TREA</span>
-          </div>
-        </div>
-
-        {/* ACCIONES */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <button 
-            onClick={() => setMostrarSimulador(!mostrarSimulador)} 
-            className="bg-white p-4 rounded-xl shadow border-2 border-amber-500 flex flex-col items-center justify-center gap-2 font-bold text-xs text-amber-700 hover:bg-amber-50 transition cursor-pointer"
-          >
-            💰 Simular y Pedir Préstamo
-          </button>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-xs text-gray-400">Transferir</div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-xs text-gray-400">Abrir Ahorro</div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-xs text-gray-400">Pagar Servicios</div>
-        </div>
-
-        {/* FORMULARIO SIMULADOR */}
-        {mostrarSimulador && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
-            <h3 className="font-extrabold text-amber-900 mb-3">💰 Simulador de Crédito Personal</h3>
-            <form onSubmit={enviarSolicitudPrestamo} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-              <div>
-                <label className="block text-xs font-bold text-amber-800 mb-1">Monto a solicitar (S/)</label>
-                <input type="number" value={montoPrestamo} onChange={(e) => setMontoPrestamo(e.target.value)} className="w-full bg-white border p-2 rounded text-sm outline-none" placeholder="Ej: 5000" required />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-amber-800 mb-1">Plazo de Devolución</label>
-                <select value={cuotas} onChange={(e) => setCuotas(e.target.value)} className="w-full bg-white border p-2 rounded text-sm outline-none">
-                  <option value="6">6 Meses</option>
-                  <option value="12">12 Meses</option>
-                  <option value="24">24 Meses</option>
-                </select>
-              </div>
-              <button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded text-sm cursor-pointer">
-                Enviar a Evaluación
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* SECCIÓN: HISTORIAL DE PRÉSTAMOS ACTIVOS Y DEVOLUCIÓN */}
-        <div className="bg-white rounded-2xl shadow-sm border p-6 mb-8">
-          <h3 className="font-extrabold text-gray-800 text-sm uppercase tracking-wider mb-4 text-red-700">
-            📊 Mis Préstamos Activos (Seguimiento de Devolución)
-          </h3>
+        {/* TABLEROS PRINCIPALES */}
+        <div className="lg:col-span-3 space-y-6">
           
-          {misPrestamosAprobados.length === 0 ? (
-            <p className="text-gray-400 text-xs italic py-2">No registras préstamos vigentes aprobados en este momento.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b text-gray-400 uppercase font-bold bg-gray-50 text-[10px]">
-                    <th className="py-3 px-2">Monto Neto</th>
-                    <th className="py-3 px-2">Meses Elegidos</th>
-                    <th className="py-3 px-2">Pago Mensual</th>
-                    <th className="py-3 px-2">Deuda Total (+Int)</th>
-                    <th className="py-3 px-2">Progreso de Cuotas</th>
-                    <th className="py-3 px-2 text-right">Acción de Devolución</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {misPrestamosAprobados.map((p) => {
-                    const mensualidad = parseFloat(p.pagoMensual);
-                    const totalConInteres = parseFloat(p.montoTotalConInteres || (p.monto * 1.15));
-                    const cuotasPagadasTotales = p.cuotasPagadas || 0;
-                    const estaCancelado = cuotasPagadasTotales >= p.cuotas;
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <h2 className="text-sm font-bold text-gray-900">Bienvenido al Simulador Integrado a <code className="bg-gray-100 px-1 rounded text-red-600">dsolicitud</code></h2>
+            <p className="text-gray-400 text-[11px] mt-0.5">Control global sincronizado con el esquema del core del curso.</p>
+          </div>
 
-                    return (
-                      <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 font-medium">
-                        <td className="py-4 px-2 font-bold text-gray-800">S/ {p.monto.toFixed(2)}</td>
-                        <td className="py-4 px-2 text-gray-600">{p.cuotas} Meses</td>
-                        <td className="py-4 px-2 text-sky-600 font-bold">S/ {mensualidad.toFixed(2)}</td>
-                        <td className="py-4 px-2 text-red-600 font-bold">S/ {totalConInteres.toFixed(2)}</td>
-                        <td className="py-4 px-2">
-                          <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${estaCancelado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {cuotasPagadasTotales} de {p.cuotas} Pagadas
-                          </span>
-                        </td>
-                        <td className="py-4 px-2 text-right">
-                          {estaCancelado ? (
-                            <span className="text-green-600 font-bold text-xs uppercase">✓ Deuda Pagada</span>
-                          ) : (
-                            <button
-                              onClick={() => pagarCuotaPrestamo(p.id, mensualidad)}
-                              className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded text-[11px] cursor-pointer shadow-sm transition"
-                            >
-                              💵 Pagar Cuota
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          {/* INDICADORES ALINEADOS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-red-500 border flex justify-between items-center">
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">TOTAL EN AHORROS</p>
+                <h3 className="text-2xl font-black text-gray-800 mt-1">S/ {saldoTotal.toFixed(2)}</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Mapeado en tiempo real</p>
+              </div>
+              <span className="text-2xl">🐷</span>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-teal-500 border flex justify-between items-center">
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">DEUDA TOTAL CREDITO</p>
+                <h3 className="text-2xl font-black text-gray-800 mt-1">S/ {deudaTotalCreditos.toFixed(2)}</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">{misPrestamosAprobados.length} activos en dsolicitud</p>
+              </div>
+              <span className="text-2xl">💳</span>
+            </div>
+          </div>
+
+          {/* FORMULARIO SIMULADOR CORE */}
+          {mostrarSimulador && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-inner">
+              <h4 className="font-bold text-amber-900 text-xs uppercase mb-3 tracking-wide">📝 Nueva Entrada: Tabla dsolicitud</h4>
+              <form onSubmit={enviarSolicitudPrestamo} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end text-xs">
+                <div>
+                  <label className="block font-bold text-amber-800 mb-1">montosolicitudcredito (S/)</label>
+                  <input type="number" value={montoSolicitud} onChange={(e) => setMontoSolicitud(e.target.value)} className="w-full bg-white border p-2 rounded outline-none" placeholder="Ej: 4000" required />
+                </div>
+                <div>
+                  <label className="block font-bold text-amber-800 mb-1">nrocuotasolicitud (Plazo)</label>
+                  <select value={nroCuotas} onChange={(e) => setNroCuotas(e.target.value)} className="w-full bg-white border p-2 rounded outline-none font-bold text-gray-700">
+                    <option value="6">6 Cuotas Mensuales</option>
+                    <option value="12">12 Cuotas Mensuales</option>
+                    <option value="24">24 Cuotas Mensuales</option>
+                  </select>
+                </div>
+                <button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition cursor-pointer uppercase text-[10px]">
+                  Insertar Solicitud
+                </button>
+              </form>
             </div>
           )}
+
+          {/* CRONOGRAMA DE PAGOS Y DEVOLUCIÓN */}
+          <div className="bg-white rounded-xl shadow-sm border p-5">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-red-700 flex items-center gap-2">
+                📊 Monitoreo de Amortizaciones (Meses Elegidos)
+              </h4>
+              <span className="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded font-bold">Esquema: dsolicitud</span>
+            </div>
+
+            {misPrestamosAprobados.length === 0 ? (
+              <div className="text-center py-6 text-xs text-gray-400 italic">
+                Ningún crédito aprobado dinámico. Línea Base en pantalla: <br />
+                <span className="font-bold text-gray-600 not-italic block mt-2">CRED-06 (Monto: S/ 3,116.36) — Tasa Compensatoria: 15%</span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b text-gray-400 font-bold bg-gray-50 text-[10px] uppercase">
+                      <th className="py-2.5 px-2">codsolicitud</th>
+                      <th className="py-2.5 px-2">Meses Elegidos</th>
+                      <th className="py-2.5 px-2">Cuota Mensual</th>
+                      <th className="py-2.5 px-2">tasainterescompensatoria</th>
+                      <th className="py-2.5 px-2">Progreso</th>
+                      <th className="py-2.5 px-2 text-right">Devolución</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {misPrestamosAprobados.map((p) => {
+                      const mensualidad = parseFloat(p.pagoMensual);
+                      const totalConInteres = parseFloat(p.montoTotalConInteres);
+                      const pagadas = p.cuotasPagadas || 0;
+                      const estaCancelado = pagadas >= p.nrocuotasolicitud;
+
+                      return (
+                        <tr key={p.pksolicitud} className="border-b last:border-0 hover:bg-gray-50 font-medium">
+                          <td className="py-3 px-2 font-bold text-gray-900">{p.codsolicitud} <span className="block font-normal text-gray-400 text-[10px]">S/ {p.montosolicitudcredito.toFixed(2)}</span></td>
+                          <td className="py-3 px-2 text-gray-600">{p.nrocuotasolicitud} Meses</td>
+                          <td className="py-3 px-2 text-teal-600 font-bold">S/ {mensualidad.toFixed(2)}</td>
+                          <td className="py-3 px-2 font-bold text-amber-600">{p.tasainterescompensatoria}% TEA</td>
+                          <td className="py-3 px-2">
+                            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${estaCancelado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {pagadas} de {p.nrocuotasolicitud} meses
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            {estaCancelado ? (
+                              <span className="text-green-600 font-bold text-[10px] tracking-wide">✓ TOTALIZADO</span>
+                            ) : (
+                              <button
+                                onClick={() => pagarCuotaPrestamo(p.pksolicitud, mensualidad)}
+                                className="bg-[#B91C1C] hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded text-[10px] uppercase cursor-pointer transition shadow-sm"
+                              >
+                                Pagar Cuota
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
         </div>
 
-        {/* HISTORIAL GENERAL DE MOVIMIENTOS */}
-        <div className="bg-white rounded-2xl shadow-sm border p-6">
-          <h3 className="font-extrabold text-gray-800 text-sm uppercase tracking-wider mb-4">Historial General de Movimientos</h3>
-          <div className="space-y-4">
-            {todosLosMovimientos.map((mov) => (
-              <div key={mov.id} className="flex justify-between items-center py-2 border-b last:border-0">
-                <div>
-                  <p className="font-bold text-sm text-gray-800">{mov.titulo}</p>
-                  <p className="text-gray-400 text-xs">{mov.detalle}</p>
-                </div>
-                <span className={`font-bold text-sm ${mov.monto > 0 ? 'text-green-600' : 'text-gray-800'}`}>
-                  {mov.monto > 0 ? `+ S/ ${mov.monto.toFixed(2)}` : `- S/ ${Math.abs(mov.monto).toFixed(2)}`}
-                </span>
-              </div>
-            ))}
+        {/* COMPONENTE DERECHO */}
+        <div className="space-y-4">
+          <div className="bg-teal-600 text-white px-4 py-3 rounded-t-xl font-bold text-xs uppercase tracking-wider shadow-sm">
+            ⚡ Operaciones Frecuentes
+          </div>
+          <div className="bg-white rounded-b-xl border border-t-0 border-gray-100 shadow-sm divide-y text-xs font-semibold text-gray-700">
+            <div className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+              <span>✈️ Transferencias propias</span>
+              <span className="text-gray-300">&gt;</span>
+            </div>
+            <div className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer text-teal-600">
+              <span>💳 Abonar a Crédito</span>
+              <span className="text-teal-400">&gt;</span>
+            </div>
+            <div className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+              <span>💧 Pago de servicios</span>
+              <span className="text-gray-300">&gt;</span>
+            </div>
+            <div onClick={() => setMostrarSimulador(!mostrarSimulador)} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer text-red-600 font-bold">
+              <span>💰 Solicitar préstamo inmediato</span>
+              <span className="text-red-400">&gt;</span>
+            </div>
           </div>
         </div>
 
