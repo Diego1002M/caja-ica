@@ -8,6 +8,7 @@ function Dashboard({ usuario, irAHome, prestamosGlobales, setPrestamosGlobales }
   const misPrestamosAprobados = prestamosGlobales ? prestamosGlobales.filter(
   (p) => (p.dni === dniCliente || p.pkcliente === usuario?.pkcliente) && p.pksolicitudestado === 2
 ) : [];
+
   const [pagosEfectuados, setPagosEfectuados] = useState(0);
   const [mostrarSimulador, setMostrarSimulador] = useState(false);
   const [montoSolicitud, setMontoSolicitud] = useState('');
