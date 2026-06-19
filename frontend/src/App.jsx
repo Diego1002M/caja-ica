@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Home from './components/cliente/Home';
 import Login from './components/cliente/Login';
 import Dashboard from './components/cliente/Dashboard';

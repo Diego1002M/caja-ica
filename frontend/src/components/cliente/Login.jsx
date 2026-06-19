@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 function Login({ rol, irAHome, alIngresar }) {
   const [dni, setDni] = useState('');
@@ -55,7 +55,7 @@ function Login({ rol, irAHome, alIngresar }) {
       } else {
         setError(datos.mensaje || 'Acceso denegado. El DNI o la contraseña no existen en el sistema.');
       }
-    } catch (err) {
+    } catch {
       setError('Error de comunicación: Asegúrate de encender el backend ejecutando python main.py en la raíz.');
     } finally {
       setCargando(false);
@@ -90,7 +90,7 @@ function Login({ rol, irAHome, alIngresar }) {
       } else {
         setError(datos.mensaje || 'Error al intentar registrar el usuario.');
       }
-    } catch (err) {
+    } catch {
       setError('Error de conexión con el backend de Python.');
     } finally {
       setCargando(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 function DashboardCliente({ usuario, irAHome, prestamosGlobales, setPrestamosGlobales }) {
   // 1. Estados para el simulador financiero (Formulario)
